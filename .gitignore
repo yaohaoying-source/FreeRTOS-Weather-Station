@@ -1,0 +1,38 @@
+# Local OneNET authentication (never commit)
+Core/Inc/onenet_config.local.h
+
+# Keil build products and personal workspace
+/MDK-ARM/STM32F103C8T6/
+/MDK-ARM/*.uvguix.*
+/MDK-ARM/*.uvoptx
+/MDK-ARM/*.lst
+/MDK-ARM/DebugConfig/*.dbgconf
+.vscode/
+
+# Build and backup files
+*.o
+*.d
+*.crf
+*.axf
+*.hex
+*.bin
+*.map
+*.htm
+*.dep
+*.lnp
+*.iex
+*.bak
+*.bak-*
+*.ioc.bak
+
+# Host simulation intermediates
+/tests/host/**/*.ll
+/tests/host/**/network_callback.inc
+/tests/host/**/event_function.inc
+/tests/host/**/event_enqueue.inc
+__pycache__/
+
+# OS metadata
+.DS_Store
+Thumbs.db
+desktop.ini

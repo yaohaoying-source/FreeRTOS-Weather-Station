@@ -1,0 +1,624 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="description" content="基于 STM32F103C8T6 FreeRTOS 气象站当前代码的任务流程、时序与职责说明。">
+  <title>任务流程与时序 · FreeRTOS 气象站</title>
+  <style>
+    :root {
+      --canvas:#f5f5ee; --paper:#fff; --ink:#162922; --muted:#687a70;
+      --line:#e1e8de; --green:#187b63; --green-dark:#0b5848;
+      --lime:#d9ed9c; --mint:#ddf0e6; --warm:#f4d9cb;
+      --navy:#122b24; --shadow:0 18px 45px rgba(35,60,44,.06);
+      --serif:Georgia,"Times New Roman","Songti SC",SimSun,serif;
+      --sans:"Microsoft YaHei UI","Microsoft YaHei","PingFang SC",system-ui,sans-serif;
+      --mono:Consolas,"SFMono-Regular",monospace;
+    }
+    * {box-sizing:border-box}
+    html {scroll-behavior:smooth}
+    body {margin:0;background:var(--canvas);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.65;-webkit-font-smoothing:antialiased}
+    button,input {font:inherit}
+    button {cursor:pointer}
+    button:focus-visible,a:focus-visible,input:focus-visible,summary:focus-visible {outline:3px solid #54a994;outline-offset:3px}
+    a {color:inherit;text-decoration:none}
+    [hidden] {display:none!important}
+    .app {display:grid;grid-template-columns:226px minmax(0,1fr);min-height:100vh}
+    .sidebar {position:sticky;top:0;height:100vh;padding:28px 20px 22px 25px;border-right:1px solid #e0e7dd;display:flex;flex-direction:column;background:#f8f9f3}
+    .brand {display:flex;align-items:center;gap:10px}
+    .brand-mark {width:38px;height:38px;display:grid;place-items:center;background:var(--green-dark);color:#e4f3bd;border-radius:11px;flex:none}
+    .brand-name {font-size:12px;font-weight:800;letter-spacing:.08em;line-height:1.3}
+    .brand-name small {display:block;color:#85958b;font:10px var(--mono);letter-spacing:.04em;margin-top:3px}
+    .nav-label {margin:54px 0 13px 10px;color:#94a398;font:10px var(--mono);font-weight:700;letter-spacing:.12em}
+    .nav {display:grid;gap:4px}
+    .nav a {display:flex;align-items:center;gap:12px;color:#72847a;font-size:13px;font-weight:700;padding:11px 10px;border-radius:9px}
+    .nav a:hover,.nav a.active {background:#e3eee4;color:var(--green-dark)}
+    .nav a span {font:10px var(--mono);color:#a1b0a5}
+    .rail-note {margin-top:auto;padding:15px 14px;background:#edf2e9;border:1px solid #e0e8dd;border-radius:13px}
+    .rail-note strong {display:block;font-size:11px;letter-spacing:.04em}
+    .rail-note p {margin:5px 0 0;color:#7a8c80;font-size:11px;line-height:1.6}
+    .rail-bottom {margin:18px 4px 0;color:#a0aea2;font:10px var(--mono);letter-spacing:.05em}
+    main {min-width:0}
+    .topbar {height:72px;display:flex;justify-content:space-between;align-items:center;gap:20px;padding:0 6.2%;border-bottom:1px solid #e2e8de;color:#839287;font-size:11px;font-weight:700;letter-spacing:.06em}
+    .topbar .crumb b {color:#344c3e}
+    .top-right {display:flex;align-items:center;gap:9px;white-space:nowrap}
+    .top-dot,.live-dot {width:7px;height:7px;border-radius:50%;background:#70a77a;display:inline-block}
+    .content {width:min(1160px,87.6%);margin:0 auto}
+    .hero {display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:36px;align-items:center;padding:77px 0 62px}
+    .eyebrow {display:flex;align-items:center;gap:9px;color:var(--green);font:700 11px var(--mono);letter-spacing:.13em;text-transform:uppercase}
+    .eyebrow::before {content:"";width:18px;height:2px;background:#78a885}
+    h1,h2,h3,p {margin-top:0}
+    h1 {font-size:clamp(37px,4.7vw,64px);letter-spacing:-.055em;line-height:1.16;margin:20px 0 19px;font-weight:800}
+    h1 .soft {color:var(--green)}
+    .hero-copy {max-width:585px;margin-bottom:25px;color:#687b6e;font-size:15px;line-height:1.95}
+    .hero-actions {display:flex;flex-wrap:wrap;align-items:center;gap:19px}
+    .button-primary {display:inline-flex;align-items:center;justify-content:center;gap:13px;padding:11px 17px;border:1px solid var(--green-dark);background:var(--green-dark);border-radius:9px;color:#fff;font-size:12px;font-weight:800}
+    .button-primary:hover {background:#124d3f}
+    .text-link {color:#4b6656;font-size:12px;font-weight:800}
+    .text-link span {padding-left:4px;color:#96a99c}
+    .hero-card {position:relative;overflow:hidden;padding:22px 22px 18px;border:1px solid #dce7d8;border-radius:18px;background:#edf3e6;box-shadow:var(--shadow)}
+    .hero-card::after {content:"";position:absolute;right:-50px;top:-56px;width:200px;height:200px;border:1px solid #d5e6d1;border-radius:50%;box-shadow:0 0 0 22px rgba(214,232,208,.5),0 0 0 48px rgba(219,235,213,.45);pointer-events:none}
+    .hero-card-top {position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;font:10px var(--mono);font-weight:700;letter-spacing:.08em;color:#70917b}
+    .hero-card-top span:last-child {padding:4px 8px;border:1px solid #c5dbc6;border-radius:5px;font-size:9px}
+    .hero-card-main {position:relative;z-index:1;display:flex;align-items:end;justify-content:space-between;gap:12px;padding:28px 0 18px}
+    .hero-number {font:76px/.9 var(--serif);letter-spacing:-.08em;color:#275943}
+    .hero-card-main h3 {font-size:15px;line-height:1.45;margin:0 0 4px}
+    .hero-card-main p {margin:0;color:#7b9481;font-size:11px}
+    .hero-card-divider {height:1px;background:#d4e4d1}
+    .hero-card-foot {display:flex;justify-content:space-between;gap:10px;padding-top:14px;color:#64816c;font-size:10px;font-weight:700}
+    .stats {display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--line);border-radius:15px;background:rgba(255,255,255,.78);box-shadow:var(--shadow)}
+    .stat {padding:19px 23px;min-width:0}
+    .stat+.stat {border-left:1px solid var(--line)}
+    .stat-top {display:flex;align-items:center;gap:8px;color:#819187;font:10px var(--mono);font-weight:700;letter-spacing:.04em}
+    .stat-dot {width:6px;height:6px;border-radius:50%;background:#9bc9a6}
+    .stat strong {display:block;font-size:17px;letter-spacing:-.03em;margin-top:7px}
+    .stat small {display:block;color:#92a098;font-size:10px;margin-top:1px}
+    .section {padding:80px 0 0;scroll-margin-top:28px}
+    .section-head {display:flex;justify-content:space-between;align-items:end;gap:30px;margin-bottom:22px}
+    .section-id {color:#78a58a;font:700 10px var(--mono);letter-spacing:.14em;text-transform:uppercase;margin-bottom:9px}
+    h2 {font-size:27px;line-height:1.3;letter-spacing:-.035em;margin:0}
+    .section-desc {max-width:400px;margin:0;color:#718478;font-size:13px;line-height:1.8;text-align:right}
+    .section-desc code,.detail-copy code,.info-card code,.faq code,.resource-table code {font:11px var(--mono);padding:2px 5px;border-radius:4px;background:#eef3ec;color:#54705d}
+    .flow-panel {overflow:hidden;border-radius:17px;background:var(--navy);box-shadow:0 20px 45px rgba(17,42,32,.12);color:#eff6ec}
+    .flow-head {display:flex;justify-content:space-between;gap:24px;align-items:start;padding:25px 27px 0}
+    .flow-kicker {font:10px var(--mono);letter-spacing:.1em;color:#91b49d}
+    .flow-head h3 {margin:7px 0 0;font-size:16px}
+    .flow-badge {flex:none;border:1px solid #426257;border-radius:5px;padding:4px 8px;font:10px var(--mono);color:#a4c9ae}
+    .flow-tabs {display:flex;gap:6px;overflow-x:auto;padding:18px 27px 0;scrollbar-width:thin}
+    .flow-tabs button {flex:none;border:1px solid transparent;border-radius:7px;background:transparent;color:#b5cabb;padding:8px 11px;font-size:12px;font-weight:700}
+    .flow-tabs button:hover {color:#fff;background:#244a3d}
+    .flow-tabs button[aria-selected="true"] {background:#dbeda9;color:#203c2c}
+    .flow-content {padding:25px 27px 26px}
+    .flow-intro {margin:0 0 19px;color:#c3d7c7;font-size:13px}
+    .flow-steps {display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;list-style:none;padding:0;margin:0}
+    .flow-steps.four {grid-template-columns:repeat(4,minmax(0,1fr))}
+    .flow-step {position:relative;min-width:0;padding:15px 13px 13px;border:1px solid #35584a;border-radius:10px;background:#1a3a2e;min-height:143px}
+    .flow-step:not(:last-child)::after {content:"→";position:absolute;z-index:2;right:-11px;top:51px;color:#a1bcaa;font-size:14px}
+    .step-num {color:#9dc5a8;font:700 10px var(--mono);letter-spacing:.06em}
+    .flow-step strong {display:block;margin:10px 0 5px;font-size:13px;line-height:1.5}
+    .flow-step p {margin:0;color:#bed0c1;font-size:12px;line-height:1.7}
+    .flow-note {display:flex;gap:10px;align-items:start;margin-top:20px;color:#c0d2c1;font-size:12px}
+    .flow-note b {color:#e0efb9;white-space:nowrap;font:700 10px var(--mono);letter-spacing:.06em;padding-top:2px}
+    .timeline-card,.task-panel,.resource-card,.footer-card {border:1px solid var(--line);border-radius:16px;background:var(--paper);box-shadow:var(--shadow)}
+    .timeline-card {padding:25px 27px 23px}
+    .card-top {display:flex;justify-content:space-between;align-items:start;gap:20px}
+    .card-label {color:#95a49a;font:700 10px var(--mono);letter-spacing:.1em}
+    .card-top h3 {margin:5px 0 3px;font-size:16px}
+    .card-top p {margin:0;color:#788b7d;font-size:12px}
+    .demo-tag {flex:none;padding:5px 9px;border-radius:6px;background:#f0f4ec;color:#8a9c8c;font:10px var(--mono)}
+    .timeline-body {padding:25px 0 8px}
+    .axis,.timeline-row {display:grid;grid-template-columns:145px minmax(0,1fr);gap:16px;align-items:center}
+    .axis {margin-bottom:8px}
+    .axis-values {display:flex;justify-content:space-between;color:#a3b0a5;font:10px var(--mono)}
+    .timeline-row {min-height:61px;border-top:1px solid #eff3ee}
+    .timeline-name strong {display:block;font-size:12px;line-height:1.4}
+    .timeline-name span {display:block;color:#819388;font:11px var(--mono);margin-top:4px}
+    .track {position:relative;height:26px;min-width:0}
+    .track::before {content:"";position:absolute;left:0;right:0;top:12px;height:2px;background:#e3ebe2}
+    .pulse {position:absolute;z-index:2;left:var(--at);top:7px;width:12px;height:12px;border-radius:50%;background:var(--dot,#75b39b);border:3px solid #fff;box-shadow:0 0 0 1px var(--dot,#75b39b);transform:translateX(-50%)}
+    .pulse.first {transform:none}.pulse.last {transform:translateX(-100%)}
+    .pulse-page {--dot:#e6a87e}.pulse-network {--dot:#687dbd}.pulse-check {--dot:#af99c3}
+    .cursor {position:absolute;left:var(--cursor,0%);z-index:4;top:0;height:26px;width:2px;background:#173d2d;transform:translateX(-50%);opacity:.8;pointer-events:none}
+    .timeline-controls {display:flex;align-items:center;gap:14px;border-top:1px solid #edf2ec;padding-top:18px}
+    .play {border:0;background:#e7f2df;color:#275f46;border-radius:8px;padding:9px 13px;font-size:11px;font-weight:800;min-width:94px}
+    .play:hover {background:#d8eacf}
+    .timeline-controls input {flex:1;min-width:30px;accent-color:var(--green)}
+    .time-output {font:700 11px var(--mono);color:#547262;white-space:nowrap;min-width:40px;text-align:right}
+    .timeline-message {min-height:40px;padding:12px 14px;margin:15px 0 0;background:#f6f9f3;border-radius:8px;color:#627868;font-size:12px}
+    .legend {display:flex;gap:16px;flex-wrap:wrap;margin-top:15px;color:#758a7b;font-size:11px}
+    .legend span {display:inline-flex;gap:6px;align-items:center}
+    .legend i {width:7px;height:7px;border-radius:50%;background:var(--c)}
+    .timing-alert {margin-top:16px;padding:15px 17px;border:1px solid #eee5d8;border-radius:10px;background:#fcf9f2;color:#806d56;font-size:12px;line-height:1.8}
+    .timing-alert strong {color:#6d5538}
+    .cycle-card {margin-top:15px;padding:23px 25px;border:1px solid var(--line);border-radius:15px;background:#fff;box-shadow:var(--shadow)}
+    .cycle-head {display:flex;align-items:start;justify-content:space-between;gap:20px}
+    .cycle-head h3 {margin:5px 0 2px;font-size:15px}.cycle-head p {margin:0;color:#788b7d;font-size:12px}
+    .cycle-steps {display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;list-style:none;padding:0;margin:18px 0 14px}
+    .cycle-steps li {position:relative;min-width:0;padding:13px 11px;border:1px solid #e9f0e6;border-radius:9px;background:#f7faf4}
+    .cycle-steps li:not(:last-child)::after {content:"→";position:absolute;right:-10px;top:26px;z-index:2;color:#a1b6a4;font-size:13px}
+    .cycle-steps small {display:block;color:#8eab98;font:700 9px var(--mono)}
+    .cycle-steps strong {display:block;margin:7px 0 4px;color:#42644f;font-size:12px}
+    .cycle-steps span {display:block;color:#758b7c;font-size:11px;line-height:1.6}
+    .cycle-note {margin:0;color:#758b7c;font-size:11px;line-height:1.8}
+    .task-layout {display:grid;grid-template-columns:240px minmax(0,1fr);gap:16px}
+    .task-tabs {display:grid;gap:9px;align-content:start}
+    .task-tabs button {display:flex;align-items:center;gap:12px;text-align:left;border:1px solid var(--line);background:#fff;border-radius:11px;padding:14px 13px;color:#486155}
+    .task-tabs button:hover {border-color:#9cc4a5}
+    .task-tabs button[aria-selected="true"] {border-color:#81b499;background:#eaf4e6;color:#175e46;box-shadow:0 5px 18px rgba(25,91,61,.06)}
+    .task-icon {display:grid;place-items:center;width:34px;height:34px;flex:none;border-radius:9px;background:#eff5ec;font:700 11px var(--mono);color:#648878}
+    .task-tabs button[aria-selected="true"] .task-icon {background:#cfe9c9;color:#26644b}
+    .task-tabs strong {display:block;font-size:12px}.task-tabs small {display:block;font:10px var(--mono);color:#9aac9f;margin-top:3px}
+    .task-panel {padding:26px 28px;min-height:330px}
+    .task-head {display:flex;justify-content:space-between;gap:15px;align-items:start;padding-bottom:20px;border-bottom:1px solid #edf2ec}
+    .task-head h3 {font-size:21px;margin:4px 0 4px;letter-spacing:-.03em}
+    .task-head p {font-size:11px;color:#8a9a8e;margin:0}
+    .pill-group {display:flex;flex-wrap:wrap;justify-content:flex-end;gap:6px}
+    .pill {padding:5px 8px;border-radius:6px;background:#f2f6ef;color:#728b77;font:10px var(--mono);white-space:nowrap}
+    .detail-copy {margin:19px 0;color:#62786a;font-size:13px;line-height:1.85}
+    .detail-grid {display:grid;grid-template-columns:1fr 1fr;gap:13px 24px}
+    .detail-item {display:flex;align-items:start;gap:10px}
+    .detail-no {flex:none;margin-top:1px;width:22px;height:22px;display:grid;place-items:center;border-radius:6px;background:#eef5e9;color:#77a086;font:700 9px var(--mono)}
+    .detail-item strong {display:block;font-size:12px;margin-bottom:2px}
+    .detail-item p {margin:0;color:#758b7c;font-size:11px;line-height:1.75}
+    .task-foot {display:flex;flex-wrap:wrap;gap:6px;margin-top:22px}
+    .task-foot span {padding:5px 8px;border:1px solid #e7eee5;border-radius:6px;color:#799081;font:10px var(--mono)}
+    .small-grid {display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:15px}
+    .info-card {padding:19px 20px;border:1px solid var(--line);border-radius:12px;background:#fbfcf8}
+    .info-card h3 {font-size:12px;margin:0 0 7px}.info-card p {font-size:12px;color:#758b7c;margin:0;line-height:1.8}
+    .resource-card {overflow:hidden}
+    .resource-scroll {overflow-x:auto}
+    .scroll-hint {display:none;margin:0;padding:11px 16px;background:#f8faf6;border-bottom:1px solid #edf2ec;color:#8b9e90;font-size:10px}
+    .resource-table {width:100%;border-collapse:collapse;text-align:left;min-width:660px}
+    .resource-table th {background:#f8faf6;padding:13px 20px;color:#91a195;font:700 10px var(--mono);letter-spacing:.04em}
+    .resource-table td {padding:14px 20px;border-top:1px solid #edf2ec;font-size:12px;color:#627a6b;vertical-align:top}
+    .resource-table td:first-child {color:#355d49;font:11px var(--mono);white-space:nowrap}
+    .resource-table td:nth-child(2) {white-space:nowrap;color:#587263}
+    .api-grid {display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:14px}
+    .api-card {padding:16px 17px;border:1px solid var(--line);border-radius:11px;background:#fbfcf8}
+    .api-card b {display:block;margin-bottom:6px;color:#668675;font:700 10px var(--mono)}
+    .api-card strong {display:block;margin-bottom:5px;font-size:11px}
+    .api-card p {margin:0;color:#758b7c;font-size:11px;line-height:1.7}
+    .two-col {display:grid;grid-template-columns:1.05fr .95fr;gap:15px}
+    .faq,.source-card {border:1px solid var(--line);border-radius:15px;background:#fff;padding:21px 22px;box-shadow:var(--shadow)}
+    .faq h3,.source-card h3 {font-size:14px;margin:0 0 10px}
+    details {border-top:1px solid #edf2ec}
+    details:first-of-type {border-top:0}
+    summary {list-style:none;cursor:pointer;display:flex;justify-content:space-between;gap:14px;padding:13px 0;color:#415d4d;font-size:12px;font-weight:700}
+    summary::-webkit-details-marker {display:none}
+    summary::after {content:"+";color:#91ae9b;font-size:16px;font-weight:400;line-height:1}
+    details[open] summary::after {content:"−"}
+    details p {margin:0 0 14px;color:#728979;font-size:12px;line-height:1.8}
+    .source-list {list-style:none;margin:0;padding:0}
+    .source-list li {display:flex;justify-content:space-between;gap:12px;padding:11px 0;border-top:1px solid #edf2ec;color:#87998c;font-size:10px}
+    .source-list li:first-child {border-top:0}
+    .source-list code {color:#486e57;font:11px var(--mono);white-space:nowrap}
+    .footer-card {margin:56px 0 24px;padding:19px 22px;display:flex;justify-content:space-between;align-items:center;gap:20px;background:#eaf2e4;border-color:#dfe9d9}
+    .footer-card strong {font-size:12px}.footer-card p {margin:3px 0 0;color:#829585;font-size:10px}
+    .footer-card a {color:#277356;font-size:11px;font-weight:800;white-space:nowrap}
+    .footer-end {display:flex;justify-content:space-between;gap:10px;padding:0 0 25px;color:#a2b0a3;font:10px var(--mono)}
+    @media(max-width:1100px) {
+      .app {grid-template-columns:190px minmax(0,1fr)} .sidebar {padding-left:17px;padding-right:15px}
+      .hero {grid-template-columns:minmax(0,1fr) 280px;gap:24px}.content {width:min(94%,1050px)}
+      .topbar {padding:0 3%}.stat {padding:16px 14px}.flow-steps {gap:8px}.flow-step {padding:12px 10px}
+      .task-layout {grid-template-columns:205px minmax(0,1fr)}
+    }
+    @media(max-width:800px) {
+      .app {display:block}.sidebar {position:relative;height:auto;padding:16px 5%;border-right:0;border-bottom:1px solid var(--line)}
+      .brand-name small {display:none}.brand-mark {width:32px;height:32px;border-radius:9px}
+      .nav-label,.rail-note,.rail-bottom {display:none}.nav {display:flex;overflow:auto;margin:15px -2px -7px;gap:3px;scrollbar-width:none}.nav a {white-space:nowrap;padding:9px 10px}
+      .nav a span {display:none}.topbar {height:53px;padding:0 5%}.topbar .crumb {font-size:10px}.content {width:90%}
+      .hero {padding:48px 0 35px;grid-template-columns:minmax(0,1fr) 240px}.hero-number {font-size:62px}.hero-card {padding:18px}
+      .stats {grid-template-columns:repeat(2,1fr)}.stat:nth-child(3) {border-left:0;border-top:1px solid var(--line)}.stat:nth-child(4) {border-top:1px solid var(--line)}
+      .section {padding-top:62px}.flow-steps,.flow-steps.four {grid-template-columns:repeat(2,minmax(0,1fr))}.flow-step {min-height:118px}
+      .flow-step:nth-child(2n)::after {display:none}.task-layout {grid-template-columns:1fr}.task-tabs {grid-template-columns:repeat(3,1fr)}
+      .task-tabs button {padding:10px}.task-icon {width:28px;height:28px}
+      .cycle-steps {grid-template-columns:repeat(3,minmax(0,1fr))}.cycle-steps li:nth-child(3n)::after {display:none}
+      .api-grid {grid-template-columns:repeat(2,minmax(0,1fr))}
+    }
+    @media(max-width:540px) {
+      body {font-size:14px}.topbar .top-right {font-size:10px}.hero {display:block;padding-top:42px}.hero h1 {font-size:42px}
+      .hero-card {margin-top:28px}.hero-card-main {padding-top:20px}.hero-number {font-size:62px}
+      .section-head {display:block}.section-desc {text-align:left;margin-top:9px}.flow-head,.flow-content {padding-left:18px;padding-right:18px}.flow-tabs {padding-left:18px;padding-right:18px}
+      .flow-step {min-height:126px}.flow-step p {font-size:11px}.flow-step:not(:last-child)::after {right:-10px}
+      .timeline-card {padding:20px 16px}.card-top {display:block}.demo-tag {display:inline-block;margin-top:10px}
+      .axis,.timeline-row {grid-template-columns:99px minmax(0,1fr);gap:8px}.axis-values {font-size:9px}.timeline-name strong {font-size:10px}.timeline-name span {font-size:9px}
+      .timeline-controls {gap:7px}.play {min-width:76px;padding:8px}.time-output {min-width:35px}.legend {gap:10px}
+      .cycle-card {padding:20px 16px}.cycle-head {display:block}.cycle-head .demo-tag {margin-top:9px}
+      .cycle-steps {grid-template-columns:repeat(2,minmax(0,1fr))}.cycle-steps li:nth-child(3n)::after {display:block}.cycle-steps li:nth-child(2n)::after {display:none}
+      .scroll-hint {display:block}
+      .task-tabs {gap:5px}.task-tabs button {display:block;padding:9px 7px}.task-icon {margin-bottom:7px}.task-tabs strong {font-size:10px}.task-tabs small {font-size:9px}
+      .task-panel {padding:21px 18px}.task-head {display:block}.pill-group {justify-content:flex-start;margin-top:12px}.detail-grid,.small-grid,.two-col {grid-template-columns:1fr}
+      .footer-card {align-items:flex-start}.footer-end {display:block}.footer-end span {display:block;margin-top:4px}
+    }
+    @media(prefers-reduced-motion:reduce) {html {scroll-behavior:auto}}
+    @media print {.sidebar,.topbar,.hero-actions,.timeline-controls,.flow-tabs,.task-tabs {display:none!important}.app {display:block}.content {width:100%}.hero {padding:20px 0}.section {padding-top:25px}.flow-panel {print-color-adjust:exact;-webkit-print-color-adjust:exact}.flow-pane,.task-pane {display:block!important;break-inside:avoid}.task-layout {display:block}.task-pane+.task-pane {margin-top:12px}}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <a class="brand" href="#top" aria-label="回到页面顶部">
+        <span class="brand-mark" aria-hidden="true">
+          <svg width="23" height="23" viewBox="0 0 24 24" fill="none"><path d="M4.5 15.5h13a3 3 0 0 0 .1-6 5.5 5.5 0 0 0-10.4-.8A3.5 3.5 0 0 0 4.5 15.5Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M7 19h4M14 19h3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </span>
+        <span class="brand-name">WEATHER STATION<small>FREERTOS / PROJECT NOTE</small></span>
+      </a>
+      <div class="nav-label">EXPLORE THE SYSTEM</div>
+      <nav class="nav" aria-label="页面导航">
+        <a class="active" href="#flow"><span>01</span>任务流程</a>
+        <a href="#timing"><span>02</span>任务时序</a>
+        <a href="#tasks"><span>03</span>任务内容</a>
+        <a href="#resources"><span>04</span>通信资源</a>
+        <a href="#notes"><span>05</span>理解与索引</a>
+      </nav>
+      <div class="rail-note">
+        <strong><span class="live-dot"></span> 源码导览</strong>
+        <p>依据当前工程整理。页面为离线说明，不连接真实设备。</p>
+      </div>
+      <div class="rail-bottom">STM32F103C8T6 · V1.0</div>
+    </aside>
+
+    <main id="top">
+      <header class="topbar">
+        <div class="crumb">PROJECT NOTE <span aria-hidden="true"> / </span> <b>任务运行全景</b></div>
+        <div class="top-right"><span class="top-dot"></span> STM32 + FREERTOS</div>
+      </header>
+      <div class="content">
+        <section class="hero" aria-labelledby="hero-title">
+          <div>
+            <div class="eyebrow">A look inside the system</div>
+            <h1 id="hero-title">从传感器，<br><span class="soft">到云端。</span></h1>
+            <p class="hero-copy">把气象站拆成可以看懂的几条线：谁在采集，谁在显示，数据怎样经由 4G 到达 OneNET，以及任务如何在同一个 MCU 上交替运行。</p>
+            <div class="hero-actions">
+              <a class="button-primary" href="#flow">开始查看任务流程 <span aria-hidden="true">↘</span></a>
+              <a class="text-link" href="#tasks">先看任务职责 <span aria-hidden="true">→</span></a>
+            </div>
+          </div>
+          <div class="hero-card" aria-label="系统组成：三个长期运行的业务任务">
+            <div class="hero-card-top"><span>SYSTEM OVERVIEW</span><span>STM32F103</span></div>
+            <div class="hero-card-main">
+              <div><div class="hero-number">03</div></div>
+              <div><h3>三个业务任务<br>协作完成一件事</h3><p>采集 / 显示 / 网络通信</p></div>
+            </div>
+            <div class="hero-card-divider"></div>
+            <div class="hero-card-foot"><span>ARM CORTEX-M3</span><span>72 MHz</span><span>FREERTOS</span></div>
+          </div>
+        </section>
+
+        <div class="stats" aria-label="当前工程的任务概要">
+          <div class="stat"><div class="stat-top"><span class="stat-dot"></span> SENSOR</div><strong>优先级 2</strong><small>采集与本地报警</small></div>
+          <div class="stat"><div class="stat-top"><span class="stat-dot" style="background:#e6a87e"></span> DISPLAY</div><strong>优先级 1</strong><small>OLED 页面与显示</small></div>
+          <div class="stat"><div class="stat-top"><span class="stat-dot" style="background:#8d9dcc"></span> NETWORK</div><strong>优先级 1</strong><small>4G、MQTT 和云端设置</small></div>
+          <div class="stat"><div class="stat-top"><span class="stat-dot" style="background:#a2a8a2"></span> KERNEL</div><strong>1 ms Tick</strong><small>任务阻塞、唤醒与调度</small></div>
+        </div>
+
+        <section class="section" id="flow" aria-labelledby="flow-title">
+          <div class="section-head">
+            <div><div class="section-id">01 / Data &amp; control flow</div><h2 id="flow-title">先看数据怎么走</h2></div>
+            <p class="section-desc">点击不同流程，沿着编号从左到右阅读。箭头表示数据或控制关系，并不表示任务按同一个顺序一直运行。</p>
+          </div>
+          <div class="flow-panel">
+            <div class="flow-head"><div><div class="flow-kicker">SYSTEM FLOW MAP</div><h3>从采集、上传到云端控制</h3></div><span class="flow-badge">SELECT A FLOW</span></div>
+            <div class="flow-tabs" role="tablist" aria-label="选择任务流程">
+              <button type="button" role="tab" aria-selected="true" aria-controls="flow-sample" id="flow-tab-sample" data-flow="sample">采集与显示</button>
+              <button type="button" role="tab" aria-selected="false" aria-controls="flow-upload" id="flow-tab-upload" data-flow="upload" tabindex="-1">上传与回执</button>
+              <button type="button" role="tab" aria-selected="false" aria-controls="flow-cloud" id="flow-tab-cloud" data-flow="cloud" tabindex="-1">云端下发</button>
+              <button type="button" role="tab" aria-selected="false" aria-controls="flow-recovery" id="flow-tab-recovery" data-flow="recovery" tabindex="-1">异常恢复</button>
+            </div>
+            <div class="flow-content">
+              <div class="flow-pane" role="tabpanel" id="flow-sample" aria-labelledby="flow-tab-sample">
+                <p class="flow-intro">一次采集形成一份快照，再分别交给显示和网络任务。</p>
+                <ol class="flow-steps four">
+                  <li class="flow-step"><span class="step-num">01 / INPUT</span><strong>传感器硬件</strong><p>DHT11、BMP280、光照 ADC 与 GP2Y1010。</p></li>
+                  <li class="flow-step"><span class="step-num">02 / SENSOR</span><strong>读取与判断</strong><p>采样、标记有效状态，比较 PM2.5 阈值并控制蜂鸣器。</p></li>
+                  <li class="flow-step"><span class="step-num">03 / SNAPSHOT</span><strong>写入两条队列</strong><p>两份长度为 1 的快照分别供显示和网络使用。</p></li>
+                  <li class="flow-step"><span class="step-num">04 / OUTPUTS</span><strong>显示 / 上报</strong><p>Display 更新 OLED；NetworkTask 读取另一份快照，等待上报。</p></li>
+                </ol>
+                <div class="flow-note"><b>注意</b><span>第 04 步包含两条并行分支：显示任务不会先执行完，网络任务才允许执行。</span></div>
+              </div>
+              <div class="flow-pane" role="tabpanel" id="flow-upload" aria-labelledby="flow-tab-upload" hidden>
+                <p class="flow-intro">模块接收 AT 指令的结果，与云平台是否接受数据，是两次不同的确认。</p>
+                <ol class="flow-steps">
+                  <li class="flow-step"><span class="step-num">01 / FORMAT</span><strong>组装属性报文</strong><p>读取上传队列，只加入本轮有效传感器字段。</p></li>
+                  <li class="flow-step"><span class="step-num">02 / SEND</span><strong>发送 MPUB</strong><p>串口发送 AT 指令，限时等待模块 OK；接收仍在进行。</p></li>
+                  <li class="flow-step"><span class="step-num">03 / RECEIVE</span><strong>DMA 接收消息</strong><p>中断通知网络任务；等待期间也会处理完整行。</p></li>
+                  <li class="flow-step"><span class="step-num">04 / MATCH</span><strong>匹配平台回执</strong><p>按主题、消息 ID 和 code 判断本次上报结果。</p></li>
+                  <li class="flow-step"><span class="step-num">05 / RESULT</span><strong>显示结果</strong><p>上传结果进入队列，显示任务更新联网状态页。</p></li>
+                </ol>
+                <div class="flow-note"><b>注意</b><span>平台回执与模块 OK 的到达顺序可能不同；等待平台回执期间，网络任务仍可处理下发。</span></div>
+              </div>
+              <div class="flow-pane" role="tabpanel" id="flow-cloud" aria-labelledby="flow-tab-cloud" hidden>
+                <p class="flow-intro">云端设置经过同一条串口接收路径，解析后更新本地报警配置。</p>
+                <ol class="flow-steps">
+                  <li class="flow-step"><span class="step-num">01 / ONENET</span><strong>发起属性设置</strong><p>下发 PM2.5 阈值或声音允许开关。</p></li>
+                  <li class="flow-step"><span class="step-num">02 / UART RX</span><strong>模块输出 MSUB</strong><p>DMA 保存字节；空闲、半满或满等接收事件通知任务。</p></li>
+                  <li class="flow-step"><span class="step-num">03 / QUEUE</span><strong>分流并排队</strong><p>网络任务拼行，识别设置主题，写入下发队列。</p></li>
+                  <li class="flow-step"><span class="step-num">04 / APPLY</span><strong>更新配置</strong><p>解析并覆盖报警配置队列，采集任务下轮读取。</p></li>
+                  <li class="flow-step"><span class="step-num">05 / REPLY</span><strong>回复请求 ID</strong><p>网络任务发送 set_reply，平台收到结果。</p></li>
+                </ol>
+                <div class="flow-note"><b>注意</b><span>开关为“允许超限时发声”；打开开关不会强制蜂鸣器立即响。</span></div>
+              </div>
+              <div class="flow-pane" role="tabpanel" id="flow-recovery" aria-labelledby="flow-tab-recovery" hidden>
+                <p class="flow-intro">连接异常时只让网络任务进入恢复流程，本地任务仍由调度器运行。</p>
+                <ol class="flow-steps">
+                  <li class="flow-step"><span class="step-num">01 / DETECT</span><strong>发现异常</strong><p>超时、串口错误或状态异常满足恢复条件。</p></li>
+                  <li class="flow-step"><span class="step-num">02 / MARK</span><strong>标记待恢复</strong><p>取消未完成的等待；失败事件保留，旧下发可能丢弃。</p></li>
+                  <li class="flow-step"><span class="step-num">03 / WAIT</span><strong>延时后重试</strong><p>失败后等待约 5 秒；不在循环中一直占用 CPU。</p></li>
+                  <li class="flow-step"><span class="step-num">04 / RECOVER</span><strong>重同步与连接</strong><p>必要时重启 DMA，等待串口安静，查询并重建连接。</p></li>
+                  <li class="flow-step"><span class="step-num">05 / RESUME</span><strong>重新订阅与上报</strong><p>连接成功后重新开始周期上传和状态查询。</p></li>
+                </ol>
+                <div class="flow-note"><b>边界</b><span>模块 RST 未确认接入 STM32；模块完全死机时，软件不能保证自动复位。</span></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="section" id="timing" aria-labelledby="timing-title">
+          <div class="section-head">
+            <div><div class="section-id">02 / Task timing</div><h2 id="timing-title">再看任务何时运行</h2></div>
+            <p class="section-desc">下面是一段方便理解的示意时间轴。拖动进度或播放演示，观察不同周期可能出现的位置。</p>
+          </div>
+          <div class="timeline-card">
+            <div class="card-top">
+              <div><div class="card-label">30-SECOND SKETCH</div><h3>联网后的稳态运行</h3><p>把网络连接成功时设为 0 秒；任务之间的起点不保证对齐。</p></div>
+              <span class="demo-tag">示意 · 非实时数据 · 4 倍速播放</span>
+            </div>
+            <div class="timeline-body" id="timeline-chart" style="--cursor:0%">
+              <div class="axis"><div></div><div class="axis-values"><span>0s</span><span>5</span><span>10</span><span>15</span><span>20</span><span>25</span><span>30s</span></div></div>
+              <div class="timeline-row">
+                <div class="timeline-name"><strong>采集任务</strong><span>一轮采集 + 等待</span></div>
+                <div class="track" aria-label="采集间隔按约 3.2 秒示意，实际不是固定周期">
+                  <i class="pulse first" style="--at:0%"></i><i class="pulse" style="--at:10.67%"></i><i class="pulse" style="--at:21.33%"></i><i class="pulse" style="--at:32%"></i><i class="pulse" style="--at:42.67%"></i><i class="pulse" style="--at:53.33%"></i><i class="pulse" style="--at:64%"></i><i class="pulse" style="--at:74.67%"></i><i class="pulse" style="--at:85.33%"></i><i class="pulse" style="--at:96%"></i><span class="cursor"></span>
+                </div>
+              </div>
+              <div class="timeline-row">
+                <div class="timeline-name"><strong>显示内容检查</strong><span>约每 1 秒</span></div>
+                <div class="track" aria-label="显示内容约每秒检查一次">
+                  <i class="pulse first" style="--at:0%"></i><i class="pulse" style="--at:16.67%"></i><i class="pulse" style="--at:33.33%"></i><i class="pulse" style="--at:50%"></i><i class="pulse" style="--at:66.67%"></i><i class="pulse" style="--at:83.33%"></i><i class="pulse last" style="--at:100%"></i><span class="cursor"></span>
+                </div>
+              </div>
+              <div class="timeline-row">
+                <div class="timeline-name"><strong>页面轮换</strong><span>约每 10 秒</span></div>
+                <div class="track" aria-label="页面约每十秒轮换">
+                  <i class="pulse pulse-page" style="--at:33.33%"></i><i class="pulse pulse-page" style="--at:66.67%"></i><i class="pulse pulse-page last" style="--at:100%"></i><span class="cursor"></span>
+                </div>
+              </div>
+              <div class="timeline-row">
+                <div class="timeline-name"><strong>属性上报</strong><span>约每 10 秒尝试</span></div>
+                <div class="track" aria-label="联网后约每十秒尝试属性上报">
+                  <i class="pulse pulse-network" style="--at:33.33%"></i><i class="pulse pulse-network" style="--at:66.67%"></i><i class="pulse pulse-network last" style="--at:100%"></i><span class="cursor"></span>
+                </div>
+              </div>
+              <div class="timeline-row">
+                <div class="timeline-name"><strong>MQTT 状态查询</strong><span>约每 30 秒</span></div>
+                <div class="track" aria-label="约每三十秒查询 MQTT 状态">
+                  <i class="pulse pulse-check last" style="--at:100%"></i><span class="cursor"></span>
+                </div>
+              </div>
+            </div>
+            <div class="timeline-controls">
+              <button type="button" class="play" id="play-timing" aria-label="播放时间轴演示">▶ 播放演示</button>
+              <input type="range" id="time-range" min="0" max="30" step="1" value="0" aria-label="时间轴示意秒数">
+              <output class="time-output" id="time-output" for="time-range">00 s</output>
+            </div>
+            <p class="timeline-message" id="time-message" aria-live="polite">联网成功：网络任务开始计算上传和状态查询的时间。</p>
+            <div class="legend"><span><i style="--c:#75b39b"></i>采集 / 显示</span><span><i style="--c:#e6a87e"></i>页面切换</span><span><i style="--c:#687dbd"></i>属性上报</span><span><i style="--c:#af99c3"></i>状态查询</span></div>
+            <div class="timing-alert"><strong>重点：2 秒不是整轮采集周期。</strong> 一轮结束后才调用 <code>vTaskDelay(2000)</code>。粉尘采样正常完成时还包含 116 次约 10 ms 的间隔，约 1.16 秒，再加上其他采集开销；图中按约 3.2 秒画采集标记，仅用于理解。显示检查一行只标出每 5 秒的位置，实际代码约每秒检查。任务调度、通信等待和故障都会改变实际时刻。</div>
+          </div>
+          <div class="cycle-card">
+            <div class="cycle-head"><div><div class="card-label">INSIDE ONE SENSOR CYCLE</div><h3>把一轮采集展开</h3><p>按照 Sensor() 中的先后顺序，从左到右阅读。</p></div><span class="demo-tag">顺序示意 · 宽度不代表耗时</span></div>
+            <ol class="cycle-steps">
+              <li><small>01 / DHT11</small><strong>温湿度</strong><span>起始信号拉低期间等待约 20 ms，再读取。</span></li>
+              <li><small>02 / BMP280</small><strong>气压</strong><span>触发测量，释放总线等待约 20 ms，再读取。</span></li>
+              <li><small>03 / ADC</small><strong>光照</strong><span>连续读取 16 次，计算平均值。</span></li>
+              <li><small>04 / GP2Y</small><strong>粉尘</strong><span>100 次预热 + 16 次采样，约 10 ms 一次。</span></li>
+              <li><small>05 / UPDATE</small><strong>判断与发布</strong><span>更新报警、事件及两份数据快照。</span></li>
+              <li><small>06 / DELAY</small><strong>等待 2 秒</strong><span>本轮完成后阻塞，让其他就绪任务运行。</span></li>
+            </ol>
+            <p class="cycle-note">DHT11 起始的 20 ms、BMP280 测量的 20 ms 与粉尘采样间的 10 ms 使用任务延时，可以让出 CPU；微秒级等待与短临界区仍会占用 CPU。失败时，对应流程可能提前结束。</p>
+          </div>
+        </section>
+
+        <section class="section" id="tasks" aria-labelledby="tasks-title">
+          <div class="section-head">
+            <div><div class="section-id">03 / Responsibilities</div><h2 id="tasks-title">每个任务具体做什么？</h2></div>
+            <p class="section-desc">选择任务，查看它的输入、处理、输出和主要代码位置。栈大小以 FreeRTOS 的 word 为单位。</p>
+          </div>
+          <div class="task-layout">
+            <div class="task-tabs" role="tablist" aria-label="选择任务">
+              <button type="button" role="tab" aria-selected="true" aria-controls="task-sensor" id="task-tab-sensor" data-task="sensor"><span class="task-icon">01</span><span><strong>Sensor</strong><small>数据采集 · P2</small></span></button>
+              <button type="button" role="tab" aria-selected="false" aria-controls="task-display" id="task-tab-display" data-task="display" tabindex="-1"><span class="task-icon">02</span><span><strong>Display</strong><small>界面显示 · P1</small></span></button>
+              <button type="button" role="tab" aria-selected="false" aria-controls="task-network" id="task-tab-network" data-task="network" tabindex="-1"><span class="task-icon">03</span><span><strong>NetworkTask</strong><small>网络通信 · P1</small></span></button>
+            </div>
+            <div class="task-panel">
+              <div class="task-pane" role="tabpanel" id="task-sensor" aria-labelledby="task-tab-sensor">
+                <div class="task-head"><div><div class="card-label">TASK 01 / ACQUISITION</div><h3>采集任务</h3><p>函数 Sensor() · 采一轮、判断一次、发布一份快照</p></div><div class="pill-group"><span class="pill">PRIORITY 2</span><span class="pill">STACK 384 WORDS</span></div></div>
+                <p class="detail-copy">任务按顺序读取各传感器。BMP280 和 OLED 共用软件 I²C，因此访问 BMP280 时使用 <code>i2cMutex</code>。</p>
+                <div class="detail-grid">
+                  <div class="detail-item"><span class="detail-no">01</span><div><strong>DHT11 温湿度</strong><p>DHT11_Read_Data() 检查时序和校验；失败时标记无效。</p></div></div>
+                  <div class="detail-item"><span class="detail-no">02</span><div><strong>BMP280 温度 / 气压</strong><p>触发测量，释放互斥锁等待约 20 ms，再读取和补偿。</p></div></div>
+                  <div class="detail-item"><span class="detail-no">03</span><div><strong>光照与粉尘</strong><p>ADC_ReadAverage() 取平均；GP2Y1010_Read() 完成脉冲采样。</p></div></div>
+                  <div class="detail-item"><span class="detail-no">04</span><div><strong>报警与快照</strong><p>Alarm_UpdatePm25() 判断报警；必要时排队事件，覆写两份快照。</p></div></div>
+                </div>
+                <div class="task-foot"><span>main.c / Sensor()</span><span>dht11.c</span><span>bmp280.c</span><span>gp2y1010.c</span></div>
+              </div>
+              <div class="task-pane" role="tabpanel" id="task-display" aria-labelledby="task-tab-display" hidden>
+                <div class="task-head"><div><div class="card-label">TASK 02 / INTERFACE</div><h3>显示任务</h3><p>函数 Display() · 接收快照，按页面显示</p></div><div class="pill-group"><span class="pill">PRIORITY 1</span><span class="pill">STACK 512 WORDS</span></div></div>
+                <p class="detail-copy">任务从 <code>weatherqueue</code> 接收最新数据，也接收网络上报结果。写 OLED 时获取共享的 <code>i2cMutex</code>。</p>
+                <div class="detail-grid">
+                  <div class="detail-item"><span class="detail-no">01</span><div><strong>数据页面</strong><p>显示温湿度、气压、光照、PM2.5、阈值与报警状态。</p></div></div>
+                  <div class="detail-item"><span class="detail-no">02</span><div><strong>联网状态页面</strong><p>显示 UART / MQTT、上传结果、设置计数和事件状态。</p></div></div>
+                  <div class="detail-item"><span class="detail-no">03</span><div><strong>关于页面</strong><p>展示版本与外设型号；三个页面约每 10 秒轮换。</p></div></div>
+                  <div class="detail-item"><span class="detail-no">04</span><div><strong>减少重复绘制</strong><p>约每秒检查内容，页面模块只重写改变的文本行。</p></div></div>
+                </div>
+                <div class="task-foot"><span>main.c / Display()</span><span>oled_pages.c</span><span>oled.c</span><span>i2cMutex</span></div>
+              </div>
+              <div class="task-pane" role="tabpanel" id="task-network" aria-labelledby="task-tab-network" hidden>
+                <div class="task-head"><div><div class="card-label">TASK 03 / CONNECTIVITY</div><h3>网络任务</h3><p>函数 NetworkTask() · 模块通信的唯一业务入口</p></div><div class="pill-group"><span class="pill">PRIORITY 1</span><span class="pill">STACK 512 WORDS</span></div></div>
+                <p class="detail-copy">网络任务负责模块连接、AT 事务、属性 / 事件上报和云端设置。等待回复时通过任务通知阻塞，让出 CPU。</p>
+                <div class="detail-grid">
+                  <div class="detail-item"><span class="detail-no">01</span><div><strong>连接与订阅</strong><p>初始化 DMA，执行模块配置、TCP / MQTT 登录和主题订阅。</p></div></div>
+                  <div class="detail-item"><span class="detail-no">02</span><div><strong>上传与事件</strong><p>取最新快照组包；超限事件在收到成功回复后出队。</p></div></div>
+                  <div class="detail-item"><span class="detail-no">03</span><div><strong>接收与下发</strong><p>在任务中拼接串口文本、识别平台回执和属性设置。</p></div></div>
+                  <div class="detail-item"><span class="detail-no">04</span><div><strong>超时与恢复</strong><p>串口错误、超时或状态异常可触发恢复；失败后等待再试。</p></div></div>
+                </div>
+                <div class="task-foot"><span>main.c / NetworkTask()</span><span>air780e.c</span><span>onenet_connect.c</span><span>onenet_upload.c</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="small-grid">
+            <div class="info-card"><h3>启动任务 · StartTask / P3</h3><p>主程序先初始化硬件并显示约 5 秒启动页；启动任务再创建通信对象与三个业务任务，随后删除自身。</p></div>
+            <div class="info-card"><h3>空闲任务 · Idle / P0</h3><p>由 FreeRTOS 创建，在没有更高优先级任务可运行时执行，也负责回收已删除任务的部分资源。</p></div>
+          </div>
+          <div class="timing-alert"><strong>怎么看优先级？</strong> FreeRTOS 任务优先级数字越大越高，所以 Sensor 的 2 高于 Display 和 NetworkTask 的 1。两个 P1 任务同时就绪时可以按时间片轮转；实际顺序还取决于它们是否正在等待队列、通知或互斥锁。</div>
+        </section>
+
+        <section class="section" id="resources" aria-labelledby="resources-title">
+          <div class="section-head">
+            <div><div class="section-id">04 / Queues &amp; synchronization</div><h2 id="resources-title">任务之间靠什么配合？</h2></div>
+            <p class="section-desc">队列传递快照、结果和事件；互斥锁保护共享总线。中断负责通知，不在中断里解析 JSON。</p>
+          </div>
+          <div class="resource-card">
+            <p class="scroll-hint">← 左右滑动可查看完整表格 →</p>
+            <div class="resource-scroll">
+              <table class="resource-table">
+                <thead><tr><th>资源</th><th>容量 / 类型</th><th>用途</th></tr></thead>
+                <tbody>
+                  <tr><td>weatherqueue</td><td>1 条</td><td>Sensor 覆写最新快照，Display 接收。</td></tr>
+                  <tr><td>uploadqueue</td><td>1 条</td><td>Sensor 覆写另一份快照，NetworkTask 读取最新值。</td></tr>
+                  <tr><td>upload_result_queue</td><td>8 条</td><td>网络任务交付上传状态；满时丢弃最旧结果。</td></tr>
+                  <tr><td>cloud_set_queue</td><td>2 条</td><td>暂存已识别的云端属性设置；队列满时计数并丢弃。</td></tr>
+                  <tr><td>alarm_config_queue</td><td>1 条</td><td>保存当前阈值与声音开关，采集任务读取。</td></tr>
+                  <tr><td>pm25_event_queue</td><td>4 条</td><td>缓存超限事件，成功回执后出队；队列满时可能丢失。</td></tr>
+                  <tr><td>i2cMutex</td><td>互斥锁</td><td>Sensor 与 Display 共享软件 I²C，防止 BMP280 和 OLED 同时访问。</td></tr>
+                  <tr><td>USART1 RX DMA</td><td>512 B 循环区</td><td>DMA 保存原始字节；接收事件通知网络任务，任务中按行处理（单行缓冲区 256 B）。</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="api-grid">
+            <div class="api-card"><b>CREATE</b><strong>创建与删除</strong><p>xTaskCreate() 创建任务；启动任务完成后 vTaskDelete()。</p></div>
+            <div class="api-card"><b>DELAY</b><strong>等待与让出</strong><p>vTaskDelay() 用于任务等待；粉尘采样用 vTaskDelayUntil() 控制间隔。</p></div>
+            <div class="api-card"><b>QUEUE</b><strong>数据交接</strong><p>xQueueOverwrite() 更新快照；接收或窥视由各自任务完成。</p></div>
+            <div class="api-card"><b>SYNC</b><strong>互斥与通知</strong><p>信号量互斥访问 I²C；串口中断用任务通知唤醒网络任务。</p></div>
+          </div>
+        </section>
+
+        <section class="section" id="notes" aria-labelledby="notes-title">
+          <div class="section-head">
+            <div><div class="section-id">05 / Notes &amp; source</div><h2 id="notes-title">几个容易绕晕的地方</h2></div>
+            <p class="section-desc">把流程图和代码对应起来，也把当前方案的边界保留下来。</p>
+          </div>
+          <div class="two-col">
+            <div class="faq">
+              <h3>快速理解</h3>
+              <details open><summary>为什么需要两个快照队列？</summary><p>显示任务和网络任务各自需要一份最新数据。两个长度为 1 的队列分别保存副本，避免一个消费者取走数据后，另一个消费者没有数据。</p></details>
+              <details><summary>DMA 和空闲中断是不是一个任务？</summary><p>不是。DMA 由硬件搬运接收字节；中断记录事件并通知网络任务。<code>Air780E_ReadLine()</code> 和消息解析在网络任务中执行。</p></details>
+              <details><summary>AT 的 OK 就是平台上传成功吗？</summary><p>不是。模块的 OK 说明对应 AT 命令收到模块确认；还需要匹配 OneNET 回执的主题、消息 ID 和返回码，才能判断平台结果。</p></details>
+              <details><summary>上传时下发能立刻执行吗？</summary><p>等待 AT 响应时，网络任务仍会读取串口并把符合条件的下发暂存到队列；真正执行设置和回复需要等当前 AT 事务结束。连接较慢或队列满时，下发仍可能超时或丢失。</p></details>
+              <details><summary>高优先级任务会一直独占 CPU 吗？</summary><p>不会。采集任务读取过程里有延时，整轮结束也会等待；处于阻塞状态时，显示和网络任务可以运行。两个 P1 任务的执行顺序取决于就绪状态和调度。</p></details>
+              <details><summary>现在的数据都一定准确、可恢复吗？</summary><p>PM2.5 是未标定的旧公式估算值；ADC 成功不能证明模拟传感器供电正常。阈值、蜂鸣器设置和未发送事件不做掉电保存。</p></details>
+            </div>
+            <div class="source-card">
+              <h3>从哪里继续读代码</h3>
+              <ul class="source-list">
+                <li><code>main.c</code><span>启动、三个任务和业务流程</span></li>
+                <li><code>air780e.c</code><span>串口 DMA、拼行、AT 等待</span></li>
+                <li><code>onenet_connect.c</code><span>连接、订阅与状态查询</span></li>
+                <li><code>onenet_upload.c</code><span>报文组装、回执与超时</span></li>
+                <li><code>onenet_control.c</code><span>云端属性设置解析</span></li>
+                <li><code>oled_pages.c</code><span>启动页与轮转页面</span></li>
+                <li><code>FreeRTOSConfig.h</code><span>内核节拍、堆与监测配置</span></li>
+              </ul>
+              <div class="timing-alert" style="margin-top:15px"><strong>边界提醒</strong><br>当前串口发送使用 HAL 轮询；接收使用循环 DMA。接收缓冲区被覆盖并非都能检测到，硬件实测与长期运行仍需要持续记录。</div>
+            </div>
+          </div>
+        </section>
+        <div class="footer-card"><div><strong>从流程回到代码</strong><p>先选一个任务，再沿着它的输入、处理、输出逐段阅读。</p></div><a href="#tasks">重新查看任务 ↑</a></div>
+        <footer class="footer-end"><span>WEATHER STATION / TASK EXPLORER</span><span>OFFLINE REFERENCE · STM32F103C8T6</span></footer>
+      </div>
+    </main>
+  </div>
+  <script>
+    (() => {
+      "use strict";
+      function setupTabs(attribute, prefix) {
+        const buttons = Array.from(document.querySelectorAll("button[" + attribute + "]"));
+        function select(button, focus) {
+          buttons.forEach((item) => {
+            const active = item === button;
+            item.setAttribute("aria-selected", String(active));
+            item.tabIndex = active ? 0 : -1;
+            const pane = document.getElementById(prefix + item.getAttribute(attribute));
+            if (pane) pane.hidden = !active;
+          });
+          if (focus) button.focus();
+        }
+        buttons.forEach((button, index) => {
+          button.addEventListener("click", () => select(button, false));
+          button.addEventListener("keydown", (event) => {
+            if (!["ArrowRight", "ArrowLeft", "ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
+            event.preventDefault();
+            let next = index;
+            if (event.key === "Home") next = 0;
+            else if (event.key === "End") next = buttons.length - 1;
+            else next = (index + (event.key === "ArrowRight" || event.key === "ArrowDown" ? 1 : -1) + buttons.length) % buttons.length;
+            select(buttons[next], true);
+          });
+        });
+      }
+      setupTabs("data-flow", "flow-");
+      setupTabs("data-task", "task-");
+
+      const range = document.getElementById("time-range");
+      const output = document.getElementById("time-output");
+      const message = document.getElementById("time-message");
+      const chart = document.getElementById("timeline-chart");
+      const play = document.getElementById("play-timing");
+      let timer = null;
+      function renderTime() {
+        const value = Number(range.value);
+        output.value = String(value).padStart(2, "0") + " s";
+        output.textContent = output.value;
+        chart.style.setProperty("--cursor", (value / 30 * 100) + "%");
+        if (value === 0) message.textContent = "联网成功：网络任务开始计算上传和状态查询的时间。";
+        else if (value === 30) message.textContent = "示意到 30 秒：状态查询和周期上报可能接近；实际执行时刻受当前任务与通信状态影响。";
+        else if (value === 10 || value === 20) message.textContent = "示意到 " + value + " 秒：页面可能切换，网络任务到期后尝试上报最新数据。";
+        else message.textContent = "示意到 " + value + " 秒：采集、显示和网络任务按各自的就绪状态交替运行。";
+      }
+      function stop() {
+        if (timer !== null) clearInterval(timer);
+        timer = null;
+        play.textContent = "▶ 播放演示";
+        play.setAttribute("aria-label", "播放时间轴演示");
+      }
+      range.addEventListener("input", () => { stop(); renderTime(); });
+      play.addEventListener("click", () => {
+        if (timer !== null) { stop(); return; }
+        if (Number(range.value) >= 30) range.value = "0";
+        renderTime();
+        play.textContent = "Ⅱ 暂停演示";
+        play.setAttribute("aria-label", "暂停时间轴演示");
+        timer = setInterval(() => {
+          range.value = String(Math.min(30, Number(range.value) + 1));
+          renderTime();
+          if (Number(range.value) >= 30) stop();
+        }, 250);
+      });
+      document.addEventListener("visibilitychange", () => { if (document.hidden) stop(); });
+      renderTime();
+
+      const links = Array.from(document.querySelectorAll(".nav a"));
+      if ("IntersectionObserver" in window) {
+        const observer = new IntersectionObserver((entries) => {
+          const visible = entries.filter((entry) => entry.isIntersecting).sort((a,b) => b.intersectionRatio-a.intersectionRatio);
+          if (!visible.length) return;
+          links.forEach((link) => link.classList.toggle("active", link.getAttribute("href") === "#" + visible[0].target.id));
+        }, {rootMargin:"-15% 0px -68% 0px",threshold:[0,.2,.5,1]});
+        links.forEach((link) => { const section = document.querySelector(link.getAttribute("href")); if (section) observer.observe(section); });
+      }
+    })();
+  </script>
+</body>
+</html>
