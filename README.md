@@ -105,15 +105,14 @@ PA3 在 CubeMX 中配置为 ADC 引脚，但当前没有实现风速采集。模
 | 模块 | 型号 / 当前确认情况 |
 | --- | --- |
 | 温湿度 | DHT11 |
-| 气压 | BMP280，曾读到 ID `0x58` |
-| 光照 | 光敏电阻式模块，AO 模拟输出；具体模块及芯片型号待确认 |
-| 粉尘 | GP2Y1010 系列；此前提供型号 GP2Y1010AU0F，完整实物丝印待核对 |
-| 控制与显示 | STM32F103C8T6 最小系统板、I²C OLED（控制器型号待确认） |
+| 气压 | BMP280 |
+| 光照 | 光敏电阻式模块 |
+| 粉尘 | GP2Y1010AU0F |
+| 控制与显示 | STM32F103C8T6 最小系统板、I²C OLED（0.96寸） |
 | 网络 | Air780E-B AT 版 4G 转接板，配套 LTE 天线和物联网 SIM 卡 |
-| 供电 | 12V 1A 电源适配器；MINI560 将 12V 降至 5V，标称 5V 5A |
+| 供电 | 12V 1A 电源适配器；MINI560 5V 5A |
 | 风速（待移植） | 聚碳三杯式风力测量仪；当前固件尚未实现风速采集 |
 
-> MINI560 的 5A 为模块标称值；12V 1A 适配器额定功率约 12W，不能提供 5V 5A 所需的 25W。
 
 - [可编辑的 EDA 工程](hardware/weather-station.epro)、[原理图 PDF](hardware/schematic.pdf)、[PCB 图 PDF](hardware/pcb-layout.pdf)
 - [整理后的物料清单](hardware/BOM.md)：分别列出板级器件与外接模块；[原始板级 BOM](hardware/pcb-bom.xlsx)
