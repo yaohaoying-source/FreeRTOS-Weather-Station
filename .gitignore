@@ -25,11 +25,7 @@ Core/Inc/onenet_config.local.h
 *.bak-*
 *.ioc.bak
 
-# Host simulation intermediates
-/tests/host/**/*.ll
-/tests/host/**/network_callback.inc
-/tests/host/**/event_function.inc
-/tests/host/**/event_enqueue.inc
+# Python cache
 __pycache__/
 
 # OS metadata

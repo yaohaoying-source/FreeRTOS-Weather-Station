@@ -35,15 +35,15 @@
 
 ### 设备实物
 
-![气象站设备实物](assets/weather-station.jpg)
+![气象站设备实物](docs/assets/weather-station.jpg)
 
 ### OLED 页面
 
 | 启动页 | 传感器数据页 |
 | --- | --- |
-| ![OLED 启动页](assets/oled-startup.jpg) | ![OLED 传感器数据页](assets/oled-weather-data.jpg) |
+| ![OLED 启动页](docs/assets/oled-startup.jpg) | ![OLED 传感器数据页](docs/assets/oled-weather-data.jpg) |
 | **网络状态页（连接中）** | **关于页** |
-| ![OLED 网络状态页](assets/oled-network-status.jpg) | ![OLED 关于页](assets/oled-about.jpg) |
+| ![OLED 网络状态页](docs/assets/oled-network-status.jpg) | ![OLED 关于页](docs/assets/oled-about.jpg) |
 
 ---
 
@@ -258,7 +258,6 @@ TIM2 提供微秒计数，TIM4 提供 HAL 时间基准，SysTick 提供 FreeRTOS
 
 ~~~text
 .
-├── assets/                  实物与 OLED 页面图片
 ├── Core/
 │   ├── Inc/                 业务、驱动头文件及 FreeRTOSConfig.h
 │   └── Src/
@@ -272,9 +271,9 @@ TIM2 提供微秒计数，TIM4 提供 HAL 时间基准，SysTick 提供 FreeRTOS
 ├── FreeRtos/                FreeRTOS 内核、头文件及 Cortex-M3 移植
 ├── MDK-ARM/                 Keil 工程、启动汇编和 RTE 配置
 ├── docs/                    可靠性测试记录、任务流程 HTML
+│   └── assets/              实物与 OLED 页面图片
 ├── hardware/                EDA 工程、图纸及物料清单
 ├── legacy/wind_sensor/      裸机风速历史参考，不加入 Keil 工程
-├── tests/host/              通信和故障的主机模拟测试
 ├── STM32F103C8T6.ioc        CubeMX 工程
 ├── .gitignore               本地密钥和构建产物排除规则
 └── README.md
